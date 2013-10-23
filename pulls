@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import os
+import prettytable
 import requests
 import sys
+import termcolor
 
 
 def get_token():
@@ -14,8 +16,10 @@ def get_token():
         sys.exit(1)
 
 
+MARK_COLOR = 'red'
 TOKEN = get_token()
 REPO = 'utest/apphance-on-premise'
+USER = os.environ.get('GITHUB_USER', None)
 
 
 class GithubClient(object):
@@ -48,10 +52,23 @@ class PullRequest(object):
         return pull
 
 
-def show_pull(pull):
-    data = [pull.number, pull.user, pull.assignee or '-', pull.title]
-    line = ' | '.join(str(p) for p in data)
-    print line
+def marked(text):
+    return termcolor.colored(text, color=MARK_COLOR)
+
+
+def get_pull_row(pull):
+    row = [pull.number, pull.user, pull.assignee, pull.title, pull.url]
+    if pull.assignee and pull.assignee == USER:
+        row = [marked(str(part)) for part in row]
+    return row
+
+
+def show_pulls(pulls):
+    table = prettytable.PrettyTable(['ID', 'User', 'Assignee', 'Title', 'URL'])
+    for pull in pulls:
+        table.add_row(get_pull_row(pull))
+
+    print table
 
 
 client = GithubClient(TOKEN)
@@ -63,9 +80,7 @@ def main():
     pulls = [PullRequest.from_dict(pdata) for pdata in data]
     pulls.sort(key=lambda pull: pull.number)
 
-    for pull in pulls:
-        show_pull(pull)
-
+    show_pulls(pulls)
 
 
 if __name__ == '__main__':
