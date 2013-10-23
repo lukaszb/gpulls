@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+# encoding: utf-8
+import os
+import requests
+import sys
+
+
+def get_token():
+    path = os.path.expanduser('~/.github-key')
+    try:
+        return open(path).read().strip()
+    except IOError:
+        print("ERROR: Cannot read token from %r" % path)
+        sys.exit(1)
+
+
+TOKEN = get_token()
+REPO = 'utest/apphance-on-premise'
+
+
+class GithubClient(object):
+    BASE_URL = 'https://api.github.com'
+
+    def __init__(self, token=None):
+        self.token = token
+
+    def get(self, path):
+        url = self.BASE_URL + path
+        return requests.get(url, auth=(self.token, ''))
+
+
+class PullRequest(object):
+
+    #def __init__(self):
+        #pass
+
+    @classmethod
+    def from_dict(cls, data):
+        pull = cls()
+        try:
+            pull.assignee = data['assignee'].get('login')
+        except:
+            import ipdb; ipdb.set_trace()
+        pull.url = data['_links']['html']['href']
+        pull.number = data['number']
+        pull.user = data['user']['login']
+        pull.title = data['title']
+        return pull
+
+
+def show_pull(pull):
+    data = [pull.number, pull.user, pull.assignee or '-', pull.title]
+    line = ' | '.join(str(p) for p in data)
+    print line
+
+
+client = GithubClient(TOKEN)
+
+
+def main():
+    response = client.get('/repos/%s/pulls' % REPO)
+    data = response.json()
+    pulls = [PullRequest.from_dict(pdata) for pdata in data]
+    pulls.sort(key=lambda pull: pull.number)
+
+    for pull in pulls:
+        show_pull(pull)
+
+
+
+if __name__ == '__main__':
+    main()
+
